@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+    branches: [main, rovara-sandbox]
+  pull_request:
+    branches: [main, rovara-sandbox]
+permissions:
+  contents: read
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
