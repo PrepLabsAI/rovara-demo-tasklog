@@ -6,7 +6,7 @@ import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
 import { formatTasks, formatReport } from "../src/format";
-import { normalize, positiveId, validateState } from "../src/validation";
+import { normalize, positiveId, validateState, limit } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
 const dirs: string[] = [];
@@ -151,5 +151,27 @@ describe("commands", () => {
     ])
       expect(() => parseArgs(args)).toThrow();
     expect(parseArgs([]).command).toBe("help");
+  });
+  it("list --limit slices after sort", () => {
+    const s = emptyState();
+    add(s, { title: "A" }); add(s, { title: "B" }); add(s, { title: "C" });
+    expect(list(s, { limit: 2 })).toHaveLength(2);
+    expect(list(s, { limit: 2 })[0].id).toBe(1);
+    expect(list(s, {})).toHaveLength(3); // no limit = all
+  });
+  it("list --limit rejects out-of-range values", () => {
+    expect(() => limit(0)).toThrow("Limit");
+    expect(() => limit(101)).toThrow("Limit");
+    expect(() => limit(1.5)).toThrow("Limit");
+    expect(limit(1)).toBe(1);
+    expect(limit(100)).toBe(100);
+  });
+  it("run list --limit end-to-end", () => {
+    const dir = directory();
+    run(["add", "A"], dir); run(["add", "B"], dir); run(["add", "C"], dir);
+    const out = run(["list", "--limit", "2"], dir);
+    expect(out.split("\n").filter(l => l.includes("[ ]" ))).toHaveLength(2);
+    expect(() => run(["list", "--limit", "0"], dir)).toThrow();
+    expect(() => run(["list", "--limit", "abc"], dir)).toThrow();
   });
 });
