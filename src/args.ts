@@ -10,7 +10,6 @@ const allowed = new Set([
   "from",
   "to",
   "data-dir",
-  "limit",
 ]);
 export function parseArgs(args: string[]): Parsed {
   const [command = "help", ...rest] = args;
