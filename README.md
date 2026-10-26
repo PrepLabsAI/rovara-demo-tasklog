@@ -30,3 +30,5 @@ presentation together; keep changes small until a second interface needs extract
 JSON documents have `version`, `nextId`, and `tasks`. Invalid input or corrupt storage
 fails without overwriting the existing document. Back up data before manual edits.
 No network connection is needed at runtime. MIT licensed.
+
+CI verification: documentation-only check.
