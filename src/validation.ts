@@ -17,6 +17,11 @@ export function minutes(value = 0): number {
   }
   return value;
 }
+export function limit(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 100)
+    throw new Error("Limit must be an integer between 1 and 100");
+  return value;
+}
 export function normalize(input: AddInput): Required<AddInput> {
   return {
     title: title(input.title),
