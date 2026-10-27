@@ -15,3 +15,14 @@ export function formatReport(rows: ProjectSummary[]): string {
     .map((r) => `${r.project}: ${r.tasks} tasks, ${r.minutes}m`)
     .join("\n");
 }
+function csvField(value: string): string {
+  if (/[,"\n\r]/.test(value) || /^[-=+@]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+export function formatReportCsv(rows: ProjectSummary[]): string {
+  const lines = ["project,tasks,minutes"];
+  for (const r of rows) lines.push(`${csvField(r.project)},${r.tasks},${r.minutes}`);
+  return lines.join("\n");
+}
