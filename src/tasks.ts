@@ -12,7 +12,7 @@ export function add(state: State, input: AddInput, now = new Date()): Task {
   return task;
 }
 export function list(state: State, options: ListOptions = {}): Task[] {
-  const result = state.tasks
+  return state.tasks
     .filter((task) => {
       if (options.project && task.project !== options.project) return false;
       if (options.status === "open") return task.completedAt === null;
@@ -20,7 +20,6 @@ export function list(state: State, options: ListOptions = {}): Task[] {
       return true;
     })
     .sort((a, b) => a.id - b.id);
-  return options.limit !== undefined ? result.slice(0, options.limit) : result;
 }
 export function done(state: State, id: number, now = new Date()): Task {
   const task = state.tasks.find((t) => t.id === id);

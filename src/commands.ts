@@ -27,17 +27,10 @@ export function run(args: string[], defaultDirectory: string): string {
       const status = flags.status ?? "all";
       if (!["all", "open", "done"].includes(status))
         throw new Error("Invalid status");
-      let limit: number | undefined;
-      if (flags.limit !== undefined) {
-        limit = Number(flags.limit);
-        if (!Number.isInteger(limit) || limit < 1 || limit > 100)
-          throw new Error("Limit must be an integer between 1 and 100");
-      }
       return formatTasks(
         list(state, {
           status: status as ListOptions["status"],
           project: flags.project,
-          limit,
         }),
       );
     }

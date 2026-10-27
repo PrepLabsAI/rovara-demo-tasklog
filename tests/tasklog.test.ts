@@ -152,20 +152,4 @@ describe("commands", () => {
       expect(() => parseArgs(args)).toThrow();
     expect(parseArgs([]).command).toBe("help");
   });
-  it("list --limit slices after sort", () => {
-    const s = emptyState();
-    add(s, { title: "A" }); add(s, { title: "B" }); add(s, { title: "C" });
-    expect(list(s, { limit: 2 })).toHaveLength(2);
-    expect(list(s, { limit: 2 }).map(t => t.id)).toEqual([1, 2]);
-    expect(list(s, {})).toHaveLength(3); // absent = unchanged
-  });
-  it("list --limit validates 1–100", () => {
-    const dir = directory();
-    expect(() => run(["list", "--limit", "0"],  dir)).toThrow("integer");
-    expect(() => run(["list", "--limit", "101"], dir)).toThrow("integer");
-    expect(() => run(["list", "--limit", "abc"], dir)).toThrow("integer");
-    expect(() => run(["list", "--limit", "1.5"], dir)).toThrow("integer");
-    expect(run(["list", "--limit", "1"], dir)).toBe("No tasks found.");
-    expect(run(["list", "--limit", "100"], dir)).toBe("No tasks found.");
-  });
 });
