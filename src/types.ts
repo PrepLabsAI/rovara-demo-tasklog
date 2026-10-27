@@ -19,6 +19,7 @@ export interface AddInput {
 export interface ListOptions {
   status?: "all" | "open" | "done";
   project?: string;
+  limit?: number;
 }
 export interface ProjectSummary {
   project: string;

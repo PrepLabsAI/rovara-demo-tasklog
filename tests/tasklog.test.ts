@@ -6,7 +6,7 @@ import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
 import { formatTasks, formatReport } from "../src/format";
-import { normalize, positiveId, validateState } from "../src/validation";
+import { normalize, positiveId, validateState, limitValue } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
 const dirs: string[] = [];
@@ -54,6 +54,20 @@ describe("tasks", () => {
     expect(positiveId("12")).toBe(12);
     for (const id of ["0", "-2", "1.2", "1e2", "abc"])
       expect(() => positiveId(id)).toThrow("ID");
+  });
+  it("rejects invalid limit values", () => {
+    for (const v of ["0", "101", "1.5", "abc", "-1"])
+      expect(() => limitValue(v)).toThrow("Limit must be an integer between 1 and 100");
+    expect(limitValue("1")).toBe(1);
+    expect(limitValue("100")).toBe(100);
+  });
+  it("respects --limit after filter and sort", () => {
+    const s = emptyState();
+    add(s, { title: "A" }); add(s, { title: "B" }); add(s, { title: "C" });
+    expect(list(s, { limit: 2 })).toHaveLength(2);
+    expect(list(s, { limit: 2 })[0].title).toBe("A"); // sorted order preserved
+    expect(list(s, {})).toHaveLength(3);               // no limit = all
+    expect(list(s, { limit: 100 })).toHaveLength(3);   // limit > count = all
   });
 });
 describe("storage", () => {
@@ -136,11 +150,21 @@ describe("commands", () => {
       ["done"],
       ["done", "1", "2"],
       ["list", "--status", "bad"],
+      ["list", "--limit", "0"],
       ["wat"],
     ]) {
       expect(() => run(args, dir)).toThrow();
     }
     expect(new JsonStore(dir).load()).toEqual(emptyState());
+  });
+  it("list --limit trims output and rejects bad values", () => {
+    const dir = directory();
+    run(["add", "A"], dir); run(["add", "B"], dir); run(["add", "C"], dir);
+    const out = run(["list", "--limit", "2"], dir);
+    expect(out.split("\n").filter(Boolean)).toHaveLength(2);
+    expect(() => run(["list", "--limit", "0"], dir)).toThrow();
+    expect(() => run(["list", "--limit", "101"], dir)).toThrow();
+    expect(() => run(["list", "--limit", "1.5"], dir)).toThrow();
   });
   it("rejects missing, repeated and unknown flags", () => {
     for (const args of [
