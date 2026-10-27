@@ -19,8 +19,7 @@ export function list(state: State, options: ListOptions = {}): Task[] {
       if (options.status === "done") return task.completedAt !== null;
       return true;
     })
-    .sort((a, b) => a.id - b.id)
-    .slice(0, options.limit);
+    .sort((a, b) => a.id - b.id);
 }
 export function done(state: State, id: number, now = new Date()): Task {
   const task = state.tasks.find((t) => t.id === id);

@@ -3,7 +3,7 @@ import { JsonStore } from "./storage";
 import { add, done, list } from "./tasks";
 import { report } from "./report";
 import { formatReport, formatTasks } from "./format";
-import { positiveId, limit as validateLimit } from "./validation";
+import { positiveId } from "./validation";
 import type { ListOptions } from "./types";
 export const HELP =
   "Commands: add <title>, list, done <id>, report. Options: --data-dir, --project, --minutes, --status, --from, --to";
@@ -31,7 +31,6 @@ export function run(args: string[], defaultDirectory: string): string {
         list(state, {
           status: status as ListOptions["status"],
           project: flags.project,
-          limit: flags.limit === undefined ? undefined : validateLimit(flags.limit),
         }),
       );
     }
