@@ -6,7 +6,7 @@ import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
 import { formatTasks, formatReport } from "../src/format";
-import { normalize, positiveId, validateState } from "../src/validation";
+import { normalize, positiveId, validateState, limit } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
 const dirs: string[] = [];
@@ -54,6 +54,59 @@ describe("tasks", () => {
     expect(positiveId("12")).toBe(12);
     for (const id of ["0", "-2", "1.2", "1e2", "abc"])
       expect(() => positiveId(id)).toThrow("ID");
+  });
+  it("limit: accepts boundaries", () => {
+    expect(limit("1")).toBe(1);
+    expect(limit("100")).toBe(100);
+  });
+  it("limit: accepts mid-range value", () => {
+    expect(limit("50")).toBe(50);
+  });
+  it.each(["0", "101", "-1", "1.5", "1e2", "0x64", " 1", "1 "])(
+    "limit: rejects %j",
+    (v) => {
+      expect(() => limit(v)).toThrow("Limit");
+    },
+  );
+  it("list: limit alone returns first N by ID", () => {
+    const s = emptyState();
+    add(s, { title: "A" });
+    add(s, { title: "B" });
+    add(s, { title: "C" });
+    expect(list(s, { limit: 2 }).map((t) => t.id)).toEqual([1, 2]);
+  });
+  it("list: limit combined with status", () => {
+    const s = emptyState();
+    add(s, { title: "A" });
+    add(s, { title: "B" });
+    add(s, { title: "C" });
+    done(s, 1);
+    expect(list(s, { status: "open", limit: 1 }).map((t) => t.id)).toEqual([2]);
+  });
+  it("list: limit combined with project", () => {
+    const s = emptyState();
+    add(s, { title: "A", project: "p" });
+    add(s, { title: "B", project: "p" });
+    add(s, { title: "C" });
+    expect(list(s, { project: "p", limit: 1 }).map((t) => t.id)).toEqual([1]);
+  });
+  it("list: limit=1 returns only the first task", () => {
+    const s = emptyState();
+    add(s, { title: "A" });
+    add(s, { title: "B" });
+    expect(list(s, { limit: 1 })).toHaveLength(1);
+    expect(list(s, { limit: 1 })[0].id).toBe(1);
+  });
+  it("list: limit=100 returns all when fewer exist", () => {
+    const s = emptyState();
+    for (let i = 0; i < 3; i++) add(s, { title: `T${i}` });
+    expect(list(s, { limit: 100 })).toHaveLength(3);
+  });
+  it("list: limit above item count returns all items", () => {
+    const s = emptyState();
+    add(s, { title: "A" });
+    add(s, { title: "B" });
+    expect(list(s, { limit: 5 })).toHaveLength(2);
   });
 });
 describe("storage", () => {
@@ -141,6 +194,22 @@ describe("commands", () => {
       expect(() => run(args, dir)).toThrow();
     }
     expect(new JsonStore(dir).load()).toEqual(emptyState());
+  });
+  it("commands: --limit accepted and applied", () => {
+    const dir = directory();
+    run(["add", "A"], dir);
+    run(["add", "B"], dir);
+    run(["add", "C"], dir);
+    const out = run(["list", "--limit", "2"], dir);
+    // formatTasks joins with '\n' and no trailing newline: 2 tasks => 2 elements
+    expect(out.split("\n")).toHaveLength(2);
+  });
+  it("commands: --limit rejects out-of-range values", () => {
+    const dir = directory();
+    run(["add", "A"], dir);
+    expect(() => run(["list", "--limit", "0"], dir)).toThrow();
+    expect(() => run(["list", "--limit", "101"], dir)).toThrow();
+    expect(() => run(["list", "--limit", "1e2"], dir)).toThrow();
   });
   it("rejects missing, repeated and unknown flags", () => {
     for (const args of [
