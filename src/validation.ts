@@ -24,12 +24,6 @@ export function normalize(input: AddInput): Required<AddInput> {
     minutes: minutes(input.minutes),
   };
 }
-export function limitN(value: string): number {
-  const result = Number(value);
-  if (!/^\d+$/.test(value) || !Number.isSafeInteger(result) || result < 1 || result > 100)
-    throw new Error("Limit must be an integer between 1 and 100");
-  return result;
-}
 export function positiveId(value: string): number {
   const result = Number(value);
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(result) || result < 1)

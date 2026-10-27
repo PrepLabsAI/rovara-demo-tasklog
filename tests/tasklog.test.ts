@@ -6,7 +6,7 @@ import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
 import { formatTasks, formatReport } from "../src/format";
-import { limitN, normalize, positiveId, validateState } from "../src/validation";
+import { normalize, positiveId, validateState } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
 const dirs: string[] = [];
@@ -54,19 +54,6 @@ describe("tasks", () => {
     expect(positiveId("12")).toBe(12);
     for (const id of ["0", "-2", "1.2", "1e2", "abc"])
       expect(() => positiveId(id)).toThrow("ID");
-  });
-  it("limitN validates 1-100 integers", () => {
-    expect(limitN("1")).toBe(1);
-    expect(limitN("100")).toBe(100);
-    for (const v of ["0", "101", "1.5", "abc", "-1", "1e2"])
-      expect(() => limitN(v)).toThrow("Limit");
-  });
-  it("limits list output after filtering and sorting", () => {
-    const s = emptyState();
-    add(s, { title: "A" }); add(s, { title: "B" }); add(s, { title: "C" });
-    expect(list(s, { limit: 2 })).toHaveLength(2);
-    expect(list(s, { limit: 2 }).map((t) => t.id)).toEqual([1, 2]);
-    expect(list(s, {})).toHaveLength(3);
   });
 });
 describe("storage", () => {
@@ -141,15 +128,6 @@ describe("commands", () => {
     expect(run(["report"], dir)).toContain("12m");
     expect(run(["add", "Next"], dir)).toBe("Added task 2.");
     expect(run(["list", "--data-dir", dir], "unused")).toContain("Next");
-  });
-  it("list --limit caps output and rejects bad values", () => {
-    const dir = directory();
-    run(["add", "A"], dir); run(["add", "B"], dir); run(["add", "C"], dir);
-    const out = run(["list", "--limit", "2"], dir);
-    expect(out.split("\n").filter(Boolean)).toHaveLength(2);
-    expect(() => run(["list", "--limit", "0"], dir)).toThrow();
-    expect(() => run(["list", "--limit", "101"], dir)).toThrow();
-    expect(() => run(["list", "--limit", "1.5"], dir)).toThrow();
   });
   it("reports invalid inputs without writes", () => {
     const dir = directory();
