@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
-import { formatTasks, formatReport } from "../src/format";
+import { formatTasks, formatReport, formatReportCsv } from "../src/format";
 import { normalize, positiveId, validateState } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
@@ -99,6 +99,54 @@ describe("report and formatting", () => {
     expect(report(s, "2026-01-02", "2026-01-02")).toHaveLength(2);
     expect(formatReport(report(s))).toContain("a: 2 tasks, 15m");
   });
+  it("formatReportCsv: header + rows", () => {
+    const rows = [
+      { project: "beta", tasks: 1, minutes: 30 },
+      { project: "alpha", tasks: 3, minutes: 120 },
+    ];
+    const out = formatReportCsv(rows);
+    expect(out).toBe("project,tasks,minutes\nbeta,1,30\nalpha,3,120");
+  });
+  it("formatReportCsv: empty rows yield header only", () => {
+    expect(formatReportCsv([])).toBe("project,tasks,minutes");
+  });
+  it("formatReportCsv: quotes project containing a comma", () => {
+    expect(formatReportCsv([{ project: "a,b", tasks: 1, minutes: 5 }])).toBe(
+      'project,tasks,minutes\n"a,b",1,5',
+    );
+  });
+  it("formatReportCsv: quotes project starting with formula-injection character", () => {
+    expect(formatReportCsv([{ project: "=evil", tasks: 1, minutes: 0 }])).toBe(
+      'project,tasks,minutes\n"=evil",1,0',
+    );
+    expect(formatReportCsv([{ project: "+add", tasks: 1, minutes: 0 }])).toBe(
+      'project,tasks,minutes\n"+add",1,0',
+    );
+    expect(formatReportCsv([{ project: "-sub", tasks: 1, minutes: 0 }])).toBe(
+      'project,tasks,minutes\n"-sub",1,0',
+    );
+    expect(formatReportCsv([{ project: "@ref", tasks: 1, minutes: 0 }])).toBe(
+      'project,tasks,minutes\n"@ref",1,0',
+    );
+  });
+  it("formatReportCsv: doubles embedded double-quotes in project", () => {
+    expect(formatReportCsv([{ project: 'say"hi', tasks: 1, minutes: 0 }])).toBe(
+      'project,tasks,minutes\n"say""hi",1,0',
+    );
+  });
+  it("formatReportCsv: safe slugs are not quoted", () => {
+    expect(formatReportCsv([{ project: "my-project", tasks: 2, minutes: 30 }])).toBe(
+      "project,tasks,minutes\nmy-project,2,30",
+    );
+  });
+  it("report --format csv combined with date filters", () => {
+    const s = emptyState();
+    add(s, { title: "A", project: "p", minutes: 10 });
+    done(s, 1, new Date("2026-03-01T00:00:00Z"));
+    const rows = report(s, "2026-03-01", "2026-03-01");
+    expect(formatReportCsv(rows)).toBe("project,tasks,minutes\np,1,10");
+    expect(formatReportCsv(report(s, "2026-03-02"))).toBe("project,tasks,minutes");
+  });
   it("handles no work and bad ranges", () => {
     const s = emptyState();
     add(s, { title: "Open" });
@@ -141,6 +189,40 @@ describe("commands", () => {
       expect(() => run(args, dir)).toThrow();
     }
     expect(new JsonStore(dir).load()).toEqual(emptyState());
+  });
+  it("report --format csv via run()", () => {
+    const dir = directory();
+    run(["add", "T", "--project", "acme", "--minutes", "5"], dir);
+    run(["done", "1"], dir);
+    const out = run(["report", "--format", "csv"], dir);
+    expect(out).toBe("project,tasks,minutes\nacme,1,5");
+  });
+  it("report --format csv on empty state returns header only", () => {
+    const dir = directory();
+    expect(run(["report", "--format", "csv"], dir)).toBe("project,tasks,minutes");
+  });
+
+  it("report --format csv with excluding date range returns header only", () => {
+    const dir = directory();
+    run(["add", "T", "--project", "acme", "--minutes", "5"], dir);
+    run(["done", "1"], dir);
+    expect(run(["report", "--format", "csv", "--from", "2099-01-01"], dir)).toBe("project,tasks,minutes");
+  });
+
+  it("report --format text explicit equals default", () => {
+    const dir = directory();
+    run(["add", "T", "--project", "acme", "--minutes", "5"], dir);
+    run(["done", "1"], dir);
+    expect(run(["report", "--format", "text"], dir)).toBe(run(["report"], dir));
+  });
+  it("report --format with invalid value throws", () => {
+    expect(() => run(["report", "--format", "json"], directory())).toThrow("Invalid format");
+    expect(() => run(["report", "--format", "CSV"], directory())).toThrow("Invalid format");
+    expect(() => run(["report", "--format", " csv"], directory())).toThrow("Invalid format");
+  });
+  it("--format flag without a value is rejected by parseArgs", () => {
+    expect(() => parseArgs(["report", "--format"])).toThrow();
+    expect(() => parseArgs(["report", "--format", "--from"])).toThrow();
   });
   it("rejects missing, repeated and unknown flags", () => {
     for (const args of [

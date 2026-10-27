@@ -2,7 +2,7 @@ import { parseArgs } from "./args";
 import { JsonStore } from "./storage";
 import { add, done, list } from "./tasks";
 import { report } from "./report";
-import { formatReport, formatTasks } from "./format";
+import { formatReport, formatReportCsv, formatTasks } from "./format";
 import { positiveId } from "./validation";
 import type { ListOptions } from "./types";
 export const HELP =
@@ -40,8 +40,12 @@ export function run(args: string[], defaultDirectory: string): string {
       store.save(state);
       return `Completed task ${task.id}.`;
     }
-    case "report":
-      return formatReport(report(state, flags.from, flags.to));
+    case "report": {
+      const fmt = flags.format ?? "text";
+      if (fmt !== "text" && fmt !== "csv") throw new Error("Invalid format");
+      const rows = report(state, flags.from, flags.to);
+      return fmt === "csv" ? formatReportCsv(rows) : formatReport(rows);
+    }
     default:
       throw new Error(`Unknown command: ${command}`);
   }
