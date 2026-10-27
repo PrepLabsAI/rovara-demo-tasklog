@@ -3,7 +3,7 @@ import { JsonStore } from "./storage";
 import { add, done, list } from "./tasks";
 import { report } from "./report";
 import { formatReport, formatTasks } from "./format";
-import { positiveId } from "./validation";
+import { positiveId, limitN } from "./validation";
 import type { ListOptions } from "./types";
 export const HELP =
   "Commands: add <title>, list, done <id>, report. Options: --data-dir, --project, --minutes, --status, --from, --to";
@@ -27,10 +27,12 @@ export function run(args: string[], defaultDirectory: string): string {
       const status = flags.status ?? "all";
       if (!["all", "open", "done"].includes(status))
         throw new Error("Invalid status");
+      const limit = flags.limit === undefined ? undefined : limitN(flags.limit);
       return formatTasks(
         list(state, {
           status: status as ListOptions["status"],
           project: flags.project,
+          limit,
         }),
       );
     }

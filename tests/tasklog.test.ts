@@ -6,7 +6,7 @@ import { JsonStore, emptyState } from "../src/storage";
 import { add, done, list } from "../src/tasks";
 import { report } from "../src/report";
 import { formatTasks, formatReport } from "../src/format";
-import { normalize, positiveId, validateState } from "../src/validation";
+import { normalize, positiveId, validateState, limitN } from "../src/validation";
 import { parseArgs } from "../src/args";
 import { run, HELP } from "../src/commands";
 const dirs: string[] = [];
@@ -55,6 +55,51 @@ describe("tasks", () => {
     for (const id of ["0", "-2", "1.2", "1e2", "abc"])
       expect(() => positiveId(id)).toThrow("ID");
   });
+  it("list with limit alone returns first N tasks by id", () => {
+    const s = emptyState();
+    for (let i = 0; i < 5; i++) add(s, { title: `T${i}` });
+    expect(list(s, { limit: 3 })).toHaveLength(3);
+    expect(list(s, { limit: 3 })[0].id).toBe(1);
+  });
+  it("limit applied after project filter", () => {
+    const s = emptyState();
+    for (let i = 0; i < 4; i++) add(s, { title: `A${i}`, project: "alpha" });
+    add(s, { title: "B", project: "beta" });
+    expect(list(s, { project: "alpha", limit: 2 })).toHaveLength(2);
+  });
+  it("limit applied after status filter", () => {
+    const s = emptyState();
+    for (let i = 1; i <= 4; i++) add(s, { title: `T${i}` });
+    done(s, 1); done(s, 2);
+    expect(list(s, { status: "open", limit: 1 })).toHaveLength(1);
+  });
+  it("limit 1 (minimum boundary) returns exactly one task", () => {
+    const s = emptyState();
+    add(s, { title: "A" }); add(s, { title: "B" });
+    expect(list(s, { limit: 1 })).toHaveLength(1);
+  });
+  it("limit 100 (maximum boundary) returns all when fewer items exist", () => {
+    const s = emptyState();
+    for (let i = 0; i < 5; i++) add(s, { title: `T${i}` });
+    expect(list(s, { limit: 100 })).toHaveLength(5);
+  });
+  it("limit above item count returns all items", () => {
+    const s = emptyState();
+    add(s, { title: "Only" });
+    expect(list(s, { limit: 50 })).toHaveLength(1);
+  });
+  it("absent limit keeps all tasks", () => {
+    const s = emptyState();
+    for (let i = 0; i < 5; i++) add(s, { title: `T${i}` });
+    expect(list(s, {})).toHaveLength(5);
+  });
+  it.each(["1", "50", "100"])("limitN accepts valid value %j", (v) => {
+    expect(limitN(v)).toBe(Number(v));
+  });
+  it.each(["", " 5", "+5", "0", "101", "1.5", "1e2", "0x64", "-1"])(
+    "limitN rejects invalid value %j",
+    (v) => { expect(() => limitN(v)).toThrow("Limit must be an integer between 1 and 100"); },
+  );
 });
 describe("storage", () => {
   it("persists and reloads without changing state", () => {
@@ -152,4 +197,26 @@ describe("commands", () => {
       expect(() => parseArgs(args)).toThrow();
     expect(parseArgs([]).command).toBe("help");
   });
+  it("--limit 2 returns first two tasks via run()", () => {
+    const dir = directory();
+    run(["add", "First"], dir);
+    run(["add", "Second"], dir);
+    run(["add", "Third"], dir);
+    const out = run(["list", "--limit", "2"], dir);
+    expect(out).toContain("First");
+    expect(out).toContain("Second");
+    expect(out).not.toContain("Third");
+  });
+  it("--limit combined with --project and --status", () => {
+    const dir = directory();
+    run(["add", "P1", "--project", "x"], dir);
+    run(["add", "P2", "--project", "x"], dir);
+    run(["add", "P3", "--project", "x"], dir);
+    const out = run(["list", "--project", "x", "--status", "open", "--limit", "2"], dir);
+    expect((out.match(/\[ \]/g) ?? []).length).toBe(2);
+  });
+  it.each(["0", "101", "1.5", "1e2", " 5", "-1", "abc"])(
+    "rejects invalid --limit %j",
+    (v) => { expect(() => run(["list", "--limit", v], directory())).toThrow(); },
+  );
 });

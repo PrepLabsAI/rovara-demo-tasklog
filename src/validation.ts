@@ -30,6 +30,14 @@ export function positiveId(value: string): number {
     throw new Error("Invalid task ID");
   return result;
 }
+export function limitN(value: string): number {
+  if (!/^\d+$/.test(value))
+    throw new Error("Limit must be an integer between 1 and 100");
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n < 1 || n > 100)
+    throw new Error("Limit must be an integer between 1 and 100");
+  return n;
+}
 function isTask(value: unknown): value is Task {
   if (!value || typeof value !== "object") return false;
   const t = value as Task;
