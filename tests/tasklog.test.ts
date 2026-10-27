@@ -197,6 +197,18 @@ describe("commands", () => {
     const out = run(["report", "--format", "csv"], dir);
     expect(out).toBe("project,tasks,minutes\nacme,1,5");
   });
+  it("report --format csv on empty state returns header only", () => {
+    const dir = directory();
+    expect(run(["report", "--format", "csv"], dir)).toBe("project,tasks,minutes");
+  });
+
+  it("report --format csv with excluding date range returns header only", () => {
+    const dir = directory();
+    run(["add", "T", "--project", "acme", "--minutes", "5"], dir);
+    run(["done", "1"], dir);
+    expect(run(["report", "--format", "csv", "--from", "2099-01-01"], dir)).toBe("project,tasks,minutes");
+  });
+
   it("report --format text explicit equals default", () => {
     const dir = directory();
     run(["add", "T", "--project", "acme", "--minutes", "5"], dir);
